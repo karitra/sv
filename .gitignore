@@ -1,0 +1,4 @@
+packages/**
+sv/bin
+sv/obj
+sv.userprefs
