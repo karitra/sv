@@ -1,4 +1,4 @@
-namespace sv
+namespace sv2
 
 type Global() =
     inherit System.Web.HttpApplication()
