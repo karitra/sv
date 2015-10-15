@@ -16,6 +16,6 @@ module Site =
             match endpoint with
                 | Index ->
                     Content.Page(
-                          Title = "Сегменты индекса",
+                          Title = "Индекс ГИКРЯ",
                           Body  = [ new MainView.SegmentsView () ]
                         )

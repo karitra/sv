@@ -12,6 +12,18 @@ module MainView =
     open Backend
     open Segment
 
+    [<Require(typeof<Resources.NumeralJS>)>]
+    [<Inline "numeral($x).format('0,0')">]
+    let strWithSep (x:int) = X<string>
+
+    [<Require(typeof<Resources.NumeralJS>)>]
+    [<Inline "numeral($x).format('0,0')">]
+    let strWithSepInt64 (x:int64) = X<string>
+
+    [<Require(typeof<Resources.NumeralJS>)>]
+    [<Inline "numeral($x).format('0 b')">]
+    let strForBytesInt64 (x:int64) = X<string>
+
     [<Require(typeof<Resources.JQuery19>)>]
     [<Require(typeof<Resources.Bootstrap3CSS>)>]
     [<Require(typeof<Resources.Bootstrap3JS>)>]
@@ -37,13 +49,38 @@ module MainView =
         let ksGroup = 
             Div [ Class "list-group"; Attr.Id "ks_grp" ]
 
+        let segmentsTable =
+            Table [Class "table table-hover hidden"; Attr.Id "segTb" ] -< 
+              [
+                Tags.Caption [ Text "Инофрмация по сегментам" ] 
+                TR [
+                    TH [Text "#"]
+                    TH [Text "С док. #"]
+                    TH [Text "По док. #"]
+                    TH [Text "Число документов"]
+                    TH [Text "Число позиций"]
+                    TH [Text "Размер"]
+                ]
+              ]
+
         let cbProcSegments (si:SegmentsInfo) =
-            ignore ()
+            JQuery.Of(".segTbRow").Remove().Ignore
+            JQuery.Of("#segTb").RemoveClass("hidden").Ignore
+            for s in si.segs do
+                segmentsTable.Append(
+                    TR [ Attr.Class "segTbRow" ] -< [
+                        TD [ Text <| string s.bin ]
+                        TD [ Text <| strWithSepInt64 s.from_doc ]
+                        TD [ Text <| strWithSepInt64 s.to_doc ]
+                        TD [ Text <| strWithSep s.doc_count ]
+                        TD [ Text <| strWithSep s.total_count ]
+                        TD [ Text <| strForBytesInt64 s.data_size ]
+                    ]
+                )
 
         let cbProcInput (ks:string list) =
             ksGroup.Clear()
             for k in ks do 
-                // Console.Log(k)
                 ksGroup.Append( 
                     Div [ Class "radio" ] -<
                         [ 
@@ -53,61 +90,73 @@ module MainView =
                                     Type "radio"
                                     Attr.Value k
                                     Attr.Name "ksOption"
-                                    // Attr.Checked "yes"
                                     Attr.Id "ks_name"
                             ]
                             Span [ Text (procKSname k) ]
                           ]
                         ])
+        
+        let hostDiv =
+            Div [ Class "form-group" ] -<
+                [ 
+                    Label  [Text "Список хостов кластера"]
+                    npsInput.OnKeyPress 
+                      (fun ev key ->
+                            match key.CharacterCode with
+                            | 13 -> async {
+                                   let! r = Server.GetKsList npsInput.Value
+                                   return cbProcInput r } |> Async.Start
+                            | _  -> () ) 
+                ]
 
-        Div [ Class "container" ] -<
-            [ Div [ Class "row" ] -< 
-                [ Div [ Class "col-md-8" ] -< 
-                    [ H2 [ Text "Сегменты" ] ] 
+        let codeDiv =
+            Div [ Class "form-group" ] -<
+                [
+                    Label  [Text "Код атрибута"]
+                    codeInput.OnKeyPress 
+                        (fun ev key ->
+                            match key.CharacterCode with 
+                                | 13 -> async {
+                                            let sel = JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").First().Val()
+                                            let! r = Server.GetSegments npsInput.Value (sel.ToString()) (int codeInput.Value)
+                                            return cbProcSegments r } |> Async.Start
+                                | _  -> () )
+                ]
+
+        Div [ Class "container-fluid" ] -< 
+            [
+              Div [ Class "row" ] -<
+                [ Div [ Class "col-md-12" ] -< 
+                    [ H2 [ Text "Просмотр сегментов" ] ] 
                 ]
               HR []
               Div [ Class "row" ] -<
-                [ Div [ Class "col-md-8" ] -< 
-                    [ Div [ Class "form-group" ] -<
-                        [ Label  [Text "Список хостов кластера"]
-                          npsInput.OnKeyPress 
-                              (fun ev key -> 
-                                match key.CharacterCode with
-                                |13 -> async {
-                                   let! r = Server.GetKsList npsInput.Value
-                                   return cbProcInput r } |> Async.Start
-                                | _  -> () )
-                        ] ] ]
-
+                [ Div [ Class "col-md-12" ] -<
+                    [ 
+                        hostDiv 
+                    ] 
+                ]
               Div [ Class "row"] -<
-                   [ Div [ Class "col-md-8" ] -< 
-                     [ Div [ Class "panel panel-default"] -< 
-                            [ 
-                                Div [ Class "panel-heading" ] -< [ H4 [ Text "Доступные индексы" ] ]
-                                Div [ Class "panel-body" ] -< [ ksGroup ]
-                            ]
-                    ] ]
-
-              Div [ Class "row"] -<
-                  [  Div [ Class "col-md-8" ] -<
-                        [ Div [ Class "form-group" ] -<
-                            [ Label  [Text "Код атрибута"]
-                              codeInput.OnKeyPress
-                                (fun ev key ->
-                                  match key.CharacterCode with
-                                  |13 -> async {
-                                     let sel = JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").Val
-                                     let t = JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").Text
-                                     Console.Log(sel.ToString())
-                                     Console.Log(sel)
-                                     Console.Log(t.ToString())
-                                     Console.Log(t)
-                                     let! r = Server.GetSegments npsInput.Value "s" (int codeInput.Value)
-                                     return cbProcSegments r } |> Async.Start
-                                  | _  -> () )
+                [ Div [ Class "col-md-12" ] -<
+                    [ Div [ Class "panel panel-default"] -<
+                        [
+                            Div [ Class "panel-heading" ] -< [ H4 [ Text "Доступные индексы" ] ]
+                            Div [ Class "panel-body" ] -< 
+                            [
+                                ksGroup
+                                codeDiv
                             ]
                         ]
-                ] ]
+                    ]
+                ]
+              Div [ Class "row"] -< 
+                [
+                    Div [ Class "col-md-12" ] -<
+                        [
+                            segmentsTable
+                        ]
+                ]
+            ]
 
 
     type SegmentsView() =

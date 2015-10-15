@@ -12,3 +12,7 @@ module Resources =
 
     type JQuery19 () =
         inherit BaseResource("Scripts/jquery-1.9.1.min.js")
+
+    type NumeralJS () =
+        inherit BaseResource("Scripts/numeral/numeral.min.js")
+

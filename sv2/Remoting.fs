@@ -69,7 +69,7 @@ module Segment =
             doc_count : int
             total_count : int
             rng_cout: int
-            data_size : int
+            data_size : int64
         }
 
     type SegmentsInfo =
@@ -86,12 +86,16 @@ module Segment =
         [for c in rs -> c.GetValue<System.Guid>(0).ToString() ] |> List.head
 
     let composeSegsQuery id =
-        sprintf "select bin, from_doc, to_doc, doc_count, total_count, rng_count, data_size from segments where id = %s" (id.ToString()) 
+        sprintf "select bin, from_doc, to_doc, doc_count, total_count, rng_count, data_size from segments where id = %s" (id.ToString())
 
     let LoadSegmentsInfo (np:string) (ks:string) (code:int) =
         let ss = GetSession np ks
-        let segments = 
-            [| for s in ss.Execute(composeSegsQuery (getUUID ss code)) 
+        let id = getUUID ss code
+
+        System.Diagnostics.Trace.WriteLine(sprintf "Code is %s" (id.ToString()) )
+
+        let segments =
+            [| for s in ss.Execute(composeSegsQuery id) 
                 -> {
                     bin         = s.GetValue<int>(0)
                     from_doc    = s.GetValue<int64>(1)
@@ -99,7 +103,7 @@ module Segment =
                     doc_count   = s.GetValue<int>(3)
                     total_count = s.GetValue<int>(4)
                     rng_cout    = s.GetValue<int>(5)
-                    data_size   = s.GetValue<int>(6)
+                    data_size   = s.GetValue<int64>(6)
                 }
             |]
 
