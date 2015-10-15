@@ -42,15 +42,14 @@ module MainView =
                                     Attr.Name "ksOption"
                                     Attr.Checked "yes"
                                     Attr.Id "ks.name"
-                                ]
-                          Label [Text (removePfx k)]
+                                ] -< [ Text (removePfx k) ]
                         ])
 
-        Div [ Class "container-fluid" ] -<
+        Div [ Class "container" ] -<
             [ Div [ Class "row" ] -< 
-                [ Div [ Class "col-md-18" ] -< [ H1 [ Text "Сегменты" ] ] ]
+                [ Div [ Class "col-md-16" ] -< [ H2 [ Text "Сегменты" ] ] ]
               Div [ Class "row" ] -<
-                [ Div [ Class "col-md-6" ] -< 
+                [ Div [ Class "col-md-8" ] -< 
                     [ Div [ Class "form-group" ] -<
                         [ Label  [Text "Список хостов кластера"]
                           npsInput.OnKeyPress 
@@ -61,19 +60,20 @@ module MainView =
                                    return cbProcInput r } |> Async.Start
                                 | _  -> () )
                         ] ] ]
+
               Div [ Class "row"] -<
-                [ 
+                [
                     Div [ Class "col-md-8" ] -< [ ksGroup ]
-                    Div [ Class "col-md-8" ] -< 
-                        [ 
+                    (* Div [ Class "col-md-8" ] -<
+                        [
                             codeInput.OnKeyPress
-                              (fun ev key -> 
+                              (fun ev key ->
                                 match key.CharacterCode with
                                 |13 -> async {
                                    let! r = Server.GetSegments npsInput.Value "s" (int codeInput.Value)
                                    return (fun x -> () ) r } |> Async.Start
                                 | _  -> () )
-                        ]
+                        ] *)
                 ]
             ]
 

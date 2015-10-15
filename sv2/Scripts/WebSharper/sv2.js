@@ -9,7 +9,7 @@
    MainView:{
     MainBody:function()
     {
-     var removePfx,x,npsInput,x1,codeInput,x2,ksGroup,cbProcInput,arg103,arg104,arg105,arg106,arg107,arg108,arg109,arg10a,arg00,arg10b,arg10c,arg10d,arg002;
+     var removePfx,x,npsInput,x1,codeInput,x2,ksGroup,cbProcInput,arg102,arg103,arg104,arg105,arg106,arg107,arg108,arg109,arg00,arg10a,arg10b;
      removePfx=function(ks)
      {
       return Strings.Remove(ks,0,Strings.length("geekrya_"));
@@ -22,7 +22,7 @@
      ksGroup=Tags.Tags().NewTag("div",x2);
      cbProcInput=function(ks)
      {
-      var enumerator,_,k,arg10,arg101,arg102,x3;
+      var enumerator,_,k,arg10,arg101,x3;
       ksGroup["HtmlProvider@33"].Clear(ksGroup.get_Body());
       enumerator=Enumerator.Get(ks);
       try
@@ -37,8 +37,7 @@
          arg10=List.ofArray([Attr.Attr().NewAttr("class","radio")]);
          arg101=List.ofArray([Attr.Attr().NewAttr("class","list-group-item"),Attr.Attr().NewAttr("type","radio"),Attr.Attr().NewAttr("value",k),Attr.Attr().NewAttr("name","ksOption"),Attr.Attr().NewAttr("checked","yes"),Attr.Attr().NewAttr("id","ks.name")]);
          x3=removePfx(k);
-         arg102=List.ofArray([Tags.Tags().text(x3)]);
-         ksGroup.AppendI(Operators.add(Tags.Tags().NewTag("div",arg10),List.ofArray([Tags.Tags().NewTag("input",arg101),Tags.Tags().NewTag("label",arg102)])));
+         ksGroup.AppendI(Operators.add(Tags.Tags().NewTag("div",arg10),List.ofArray([Operators.add(Tags.Tags().NewTag("input",arg101),List.ofArray([Tags.Tags().text(x3)]))])));
         }
       }
       finally
@@ -47,14 +46,14 @@
       }
       return _;
      };
-     arg103=List.ofArray([Attr.Attr().NewAttr("class","container-fluid")]);
-     arg104=List.ofArray([Attr.Attr().NewAttr("class","row")]);
-     arg105=List.ofArray([Attr.Attr().NewAttr("class","col-md-18")]);
-     arg106=List.ofArray([Tags.Tags().text("\u0421\u0435\u0433\u043c\u0435\u043d\u0442\u044b")]);
-     arg107=List.ofArray([Attr.Attr().NewAttr("class","row")]);
-     arg108=List.ofArray([Attr.Attr().NewAttr("class","col-md-6")]);
-     arg109=List.ofArray([Attr.Attr().NewAttr("class","form-group")]);
-     arg10a=List.ofArray([Tags.Tags().text("\u0421\u043f\u0438\u0441\u043e\u043a \u0445\u043e\u0441\u0442\u043e\u0432 \u043a\u043b\u0430\u0441\u0442\u0435\u0440\u0430")]);
+     arg102=List.ofArray([Attr.Attr().NewAttr("class","container")]);
+     arg103=List.ofArray([Attr.Attr().NewAttr("class","row")]);
+     arg104=List.ofArray([Attr.Attr().NewAttr("class","col-md-16")]);
+     arg105=List.ofArray([Tags.Tags().text("\u0421\u0435\u0433\u043c\u0435\u043d\u0442\u044b")]);
+     arg106=List.ofArray([Attr.Attr().NewAttr("class","row")]);
+     arg107=List.ofArray([Attr.Attr().NewAttr("class","col-md-8")]);
+     arg108=List.ofArray([Attr.Attr().NewAttr("class","form-group")]);
+     arg109=List.ofArray([Tags.Tags().text("\u0421\u043f\u0438\u0441\u043e\u043a \u0445\u043e\u0441\u0442\u043e\u0432 \u043a\u043b\u0430\u0441\u0442\u0435\u0440\u0430")]);
      arg00=function()
      {
       return function(key)
@@ -82,37 +81,9 @@
       };
      };
      EventsPervasives.Events().OnKeyPress(arg00,npsInput);
-     arg10b=List.ofArray([Attr.Attr().NewAttr("class","row")]);
-     arg10c=List.ofArray([Attr.Attr().NewAttr("class","col-md-8")]);
-     arg10d=List.ofArray([Attr.Attr().NewAttr("class","col-md-8")]);
-     arg002=function()
-     {
-      return function(key)
-      {
-       var matchValue,_,arg001;
-       matchValue=key.CharacterCode;
-       if(matchValue===13)
-        {
-         arg001=Concurrency.Delay(function()
-         {
-          return Concurrency.Bind(AjaxRemotingProvider.Async("sv2:1",[npsInput.get_Value(),"s",codeInput.get_Value()<<0]),function()
-          {
-           return Concurrency.Return(null);
-          });
-         });
-         _=Concurrency.Start(arg001,{
-          $:0
-         });
-        }
-       else
-        {
-         _=null;
-        }
-       return _;
-      };
-     };
-     EventsPervasives.Events().OnKeyPress(arg002,codeInput);
-     return Operators.add(Tags.Tags().NewTag("div",arg103),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg104),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg105),List.ofArray([Tags.Tags().NewTag("h1",arg106)]))])),Operators.add(Tags.Tags().NewTag("div",arg107),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg108),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg109),List.ofArray([Tags.Tags().NewTag("label",arg10a),npsInput]))]))])),Operators.add(Tags.Tags().NewTag("div",arg10b),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg10c),List.ofArray([ksGroup])),Operators.add(Tags.Tags().NewTag("div",arg10d),List.ofArray([codeInput]))]))]));
+     arg10a=List.ofArray([Attr.Attr().NewAttr("class","row")]);
+     arg10b=List.ofArray([Attr.Attr().NewAttr("class","col-md-8")]);
+     return Operators.add(Tags.Tags().NewTag("div",arg102),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg103),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg104),List.ofArray([Tags.Tags().NewTag("h2",arg105)]))])),Operators.add(Tags.Tags().NewTag("div",arg106),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg107),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg108),List.ofArray([Tags.Tags().NewTag("label",arg109),npsInput]))]))])),Operators.add(Tags.Tags().NewTag("div",arg10a),List.ofArray([Operators.add(Tags.Tags().NewTag("div",arg10b),List.ofArray([ksGroup]))]))]));
     },
     SegmentsView:Runtime.Class({
      get_Body:function()
