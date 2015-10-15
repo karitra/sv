@@ -72,7 +72,7 @@ module Segment =
             data_size : int
         }
 
-    type SementsInfo =
+    type SegmentsInfo =
         {
            binsCount : int
            totalDocs: int64
