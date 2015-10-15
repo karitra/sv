@@ -52,7 +52,7 @@ module MainView =
         let segmentsTable =
             Table [Class "table table-hover hidden"; Attr.Id "segTb" ] -< 
               [
-                Tags.Caption [ Text "Инофрмация по сегментам" ] 
+                Tags.Caption [ Text "Информация по сегментам" ] 
                 TR [
                     TH [Text "#"]
                     TH [Text "С док. #"]
