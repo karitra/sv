@@ -12,6 +12,9 @@ module MainView =
     open Backend
     open Segment
 
+    [<Literal>]
+    let DEFAULT_CODE_INFO_MSG = "Информация по коду"
+
     [<Require(typeof<Resources.NumeralJS>)>]
     [<Inline "numeral($x).format('0,0')">]
     let strWithSep (x:int) = X<string>
@@ -23,6 +26,11 @@ module MainView =
     [<Require(typeof<Resources.NumeralJS>)>]
     [<Inline "numeral($x).format('0 b')">]
     let strForBytesInt64 (x:int64) = X<string>
+
+    [<Require(typeof<Resources.NumeralJS>)>]
+    [<Inline "numeral($x).format('0 b')">]
+    let strForBytesFloat (x:float) = X<string>
+
 
     [<Require(typeof<Resources.JQuery19>)>]
     [<Require(typeof<Resources.Bootstrap3CSS>)>]
@@ -39,7 +47,6 @@ module MainView =
 
             ks |> removePfx |> replaceUnder
 
-
         let npsInput = 
             Input [ Class "form-control"; Attr.PlaceHolder "Хост:Порт"; Attr.Value "127.0.0.1:9943" ]
 
@@ -48,6 +55,9 @@ module MainView =
 
         let ksGroup = 
             Div [ Class "list-group"; Attr.Id "ks_grp" ]
+
+        let segsInfoGroup =
+            Tags.UL [ Class "list-group"; Attr.Id "segsInfo" ]
 
         let segmentsTable =
             Table [Class "table table-hover hidden"; Attr.Id "segTb" ] -< 
@@ -62,8 +72,32 @@ module MainView =
                     TH [Text "Размер"]
                 ]
               ]
+        
+        let formatCodeInfoStr (c:int) = 
+            sprintf "%s %d" DEFAULT_CODE_INFO_MSG c
 
-        let cbProcSegments (si:SegmentsInfo) =
+
+        let cbProcSegments (si:SegmentsInfo) (c: int) =
+
+            let addStatItem msg cnt =
+                LI [ Class "list-group-item" ] 
+                    -< [
+                            Tags.Span [ Class "badge" ] -< [ Text cnt ]
+                            Tags.Span [ Text msg ]
+                        ]
+
+            JQuery.Of("#codeMsg").Text(formatCodeInfoStr c).Ignore
+
+            segsInfoGroup.Clear()
+            segsInfoGroup.Append(
+                addStatItem "Число сегментов" (string si.binsCount) )
+            segsInfoGroup.Append(
+                addStatItem "Число документов" (strWithSepInt64 si.totalDocs) )
+            segsInfoGroup.Append(
+                addStatItem "Число позиций" (strWithSepInt64 si.totalPos) )
+            segsInfoGroup.Append(
+                addStatItem "Средняя длина сегмента" (strForBytesFloat si.avgSize) )
+
             JQuery.Of(".segTbRow").Remove().Ignore
             JQuery.Of("#segTb").RemoveClass("hidden").Ignore
             for s in si.segs do
@@ -117,9 +151,10 @@ module MainView =
                         (fun ev key ->
                             match key.CharacterCode with 
                                 | 13 -> async {
+                                            let code = int codeInput.Value
                                             let sel = JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").First().Val()
-                                            let! r = Server.GetSegments npsInput.Value (sel.ToString()) (int codeInput.Value)
-                                            return cbProcSegments r } |> Async.Start
+                                            let! r = Server.GetSegments npsInput.Value (sel.ToString()) code
+                                            return cbProcSegments r code } |> Async.Start
                                 | _  -> () )
                 ]
 
@@ -151,10 +186,20 @@ module MainView =
                 ]
               Div [ Class "row"] -< 
                 [
-                    Div [ Class "col-md-12" ] -<
-                        [
-                            segmentsTable
-                        ]
+                    Div [ Class "col-md-6" ] -<
+                            [ Div [ Class "well" ] -<
+                                [
+
+                                    Span [ Class "label label-info"; Attr.Id "codeMsg" ] -<
+                                        [ Text DEFAULT_CODE_INFO_MSG ]
+                                    segsInfoGroup
+                                    ] ]
+                ]
+
+              Div [ Class "row"] -< 
+                [
+                    Div [ Class "col-md-10" ] -<
+                        [ segmentsTable ]
                 ]
             ]
 
