@@ -49,10 +49,16 @@ module MainView =
 
         let npsInput = 
             Input [ Class "form-control"; Attr.PlaceHolder "Хост:Порт"; Attr.Value "127.0.0.1:9943" ]
-
+        
         let codeInput =
-            Input [ Class "form-control"; Attr.PlaceHolder "Код" ] 
+            Input [ Class "form-control"; Attr.PlaceHolder "Код" ]
 
+        let userInput =
+            Input [ Class "form-control"; Attr.PlaceHolder "Пользователь" ]
+
+        let nameInput =
+            Input [ Class "form-control"; Attr.PlaceHolder "Имя" ]
+        
         let ksGroup = 
             Div [ Class "list-group"; Attr.Id "ks_grp" ]
 
@@ -74,43 +80,46 @@ module MainView =
               ]
         
         let formatCodeInfoStr (c:int) = 
-            sprintf "%s %d" DEFAULT_CODE_INFO_MSG c
+                sprintf "%s %d" DEFAULT_CODE_INFO_MSG c
 
+        let formatNameInfoStr(n:string) (u:string)  =
+                sprintf "%s: %s, пользователь %s" DEFAULT_CODE_INFO_MSG n u
 
-        let cbProcSegments (si:SegmentsInfo) (c: int) =
+        let cbProcSegments (si:SegmentsInfo) (c:Segment.Attr) =
+                let addStatItem msg cnt =
+                    LI [ Class "list-group-item" ] 
+                        -< [
+                                Tags.Span [ Class "badge" ] -< [ Text cnt ]
+                                Tags.Span [ Text msg ]
+                            ]
 
-            let addStatItem msg cnt =
-                LI [ Class "list-group-item" ] 
-                    -< [
-                            Tags.Span [ Class "badge" ] -< [ Text cnt ]
-                            Tags.Span [ Text msg ]
+                match c with
+                    | Segment.AttrByCode(ic) -> JQuery.Of("#codeMsg").Text(formatCodeInfoStr ic).Ignore
+                    | Segment.AttrByName(n, u) -> JQuery.Of("#codeMsg").Text(formatNameInfoStr n u).Ignore
+
+                segsInfoGroup.Clear()
+                segsInfoGroup.Append(
+                    addStatItem "Число сегментов" (string si.binsCount) )
+                segsInfoGroup.Append(
+                    addStatItem "Число документов" (strWithSepInt64 si.totalDocs) )
+                segsInfoGroup.Append(
+                    addStatItem "Число позиций" (strWithSepInt64 si.totalPos) )
+                segsInfoGroup.Append(
+                    addStatItem "Средняя длина сегмента" (strForBytesFloat si.avgSize) )
+
+                JQuery.Of(".segTbRow").Remove().Ignore
+                JQuery.Of("#segTb").RemoveClass("hidden").Ignore
+                for s in si.segs do
+                    segmentsTable.Append(
+                        TR [ Attr.Class "segTbRow" ] -< [
+                            TD [ Text <| string s.bin ]
+                            TD [ Text <| strWithSepInt64 s.from_doc ]
+                            TD [ Text <| strWithSepInt64 s.to_doc ]
+                            TD [ Text <| strWithSep s.doc_count ]
+                            TD [ Text <| strWithSep s.total_count ]
+                            TD [ Text <| strForBytesInt64 s.data_size ]
                         ]
-
-            JQuery.Of("#codeMsg").Text(formatCodeInfoStr c).Ignore
-
-            segsInfoGroup.Clear()
-            segsInfoGroup.Append(
-                addStatItem "Число сегментов" (string si.binsCount) )
-            segsInfoGroup.Append(
-                addStatItem "Число документов" (strWithSepInt64 si.totalDocs) )
-            segsInfoGroup.Append(
-                addStatItem "Число позиций" (strWithSepInt64 si.totalPos) )
-            segsInfoGroup.Append(
-                addStatItem "Средняя длина сегмента" (strForBytesFloat si.avgSize) )
-
-            JQuery.Of(".segTbRow").Remove().Ignore
-            JQuery.Of("#segTb").RemoveClass("hidden").Ignore
-            for s in si.segs do
-                segmentsTable.Append(
-                    TR [ Attr.Class "segTbRow" ] -< [
-                        TD [ Text <| string s.bin ]
-                        TD [ Text <| strWithSepInt64 s.from_doc ]
-                        TD [ Text <| strWithSepInt64 s.to_doc ]
-                        TD [ Text <| strWithSep s.doc_count ]
-                        TD [ Text <| strWithSep s.total_count ]
-                        TD [ Text <| strForBytesInt64 s.data_size ]
-                    ]
-                )
+                    )
 
         let cbProcInput (ks:string list) =
             ksGroup.Clear()
@@ -143,18 +152,36 @@ module MainView =
                             | _  -> () ) 
                 ]
 
+        let getSelectedKs () =
+            JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").First().Val().ToString()
+
+        let requestSegments (code:Segment.Attr) (remote: string -> string -> Segment.Attr -> Async<Segment.SegmentsInfo>) = 
+            async {
+                let! r = remote npsInput.Value (getSelectedKs ()) code
+                return cbProcSegments r code } 
+
         let codeDiv =
             Div [ Class "form-group" ] -<
                 [
                     Label  [Text "Код атрибута"]
                     codeInput.OnKeyPress 
                         (fun ev key ->
-                            match key.CharacterCode with 
-                                | 13 -> async {
-                                            let code = int codeInput.Value
-                                            let sel = JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").First().Val()
-                                            let! r = Server.GetSegments npsInput.Value (sel.ToString()) code
-                                            return cbProcSegments r code } |> Async.Start
+                            // let intCode = int codeInput.Value
+                            match key.CharacterCode with
+                                | 13 -> requestSegments (Segment.AttrByCode (int codeInput.Value)) Server.GetSegments |> Async.Start
+                                | _  -> () )
+                ]
+
+        let nameDiv =
+            Div [ Class "form-group" ] -<
+                [
+                    Label  [Text "Имя пользователя"]
+                    userInput
+                    Label  [Text "Имя атрибута"]
+                    nameInput.OnKeyPress 
+                        (fun ev key ->
+                            match key.CharacterCode with
+                                | 13 -> requestSegments (Segment.AttrByName (nameInput.Value, userInput.Value) ) Server.GetSegments |> Async.Start
                                 | _  -> () )
                 ]
 
@@ -180,10 +207,12 @@ module MainView =
                             [
                                 ksGroup
                                 codeDiv
+                                nameDiv
                             ]
                         ]
                     ]
                 ]
+
               Div [ Class "row"] -< 
                 [
                     Div [ Class "col-md-6" ] -<

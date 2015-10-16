@@ -1,3 +1,6 @@
+(* 
+    TODO: сообщать об ошибках клиенту
+*)
 namespace sv2
 
 open WebSharper
@@ -60,9 +63,27 @@ module Segment =
 
     open Backend
     open Cassandra
+    open Cassandra.Mapping
+
+    type Attr = | AttrByCode of int 
+                | AttrByName of name:string * user:string
+
+    type Code =
+        {
+            code: int
+            id: System.Guid
+        }
+
+    type Query =
+        {
+            name: string
+            user: string
+            id: System.Guid
+        }
 
     type Segment =
         {
+            id: System.Guid
             bin: int
             from_doc: int64
             to_doc: int64
@@ -80,30 +101,42 @@ module Segment =
            avgSize : float
            segs : Segment array
         }
-            
-    let getUUID (ss:ISession) (code:int) =
-        let rs = ss.Execute(sprintf "select id from codes where code = %d" code)
-        [for c in rs -> c.GetValue<System.Guid>(0).ToString() ] |> List.head
+
+    let getUUIDByCode (ss:ISession) (ks:string) (code:int) =
+        let m = new Mapper(ss)
+        m.Single<System.Guid>(sprintf "select id from %s.codes where code = ?" ks, code)
+
+    let getUUIDByName (ss:ISession) (ks:string) (name:string) (user:string) =
+
+        System.Diagnostics.Trace.WriteLine(sprintf "Name: %s User: %s" name user)
+        System.Diagnostics.Debug.WriteLine(sprintf "Name: %s User: %s" name user)
+
+        let m  = new Mapper(ss)
+        m.Single<System.Guid>(sprintf "select id from %s.vinames where name = ? and user = ?" ks, name, user)
 
     let composeSegsQuery id =
-        sprintf "select bin, from_doc, to_doc, doc_count, total_count, rng_count, data_size from segments where id = %s" (id.ToString())
+        sprintf "select id, bin, from_doc, to_doc, doc_count, total_count, rng_count, data_size from segments where id = %s" id
 
-    let LoadSegmentsInfo (np:string) (ks:string) (code:int) =
+    let LoadSegmentsInfo (np:string) (ks:string) (code:Attr) =
+
         let ss = GetSession np ks
-        let id = getUUID ss code
+        let id = match code with 
+                    | AttrByCode(c) -> getUUIDByCode ss ks c |> string
+                    | AttrByName(n,u) -> getUUIDByName ss ks n u |> string
 
-        System.Diagnostics.Trace.WriteLine(sprintf "Code is %s" (id.ToString()) )
+        System.Diagnostics.Trace.WriteLine(sprintf "Code is %s" id )
 
         let segments =
             [| for s in ss.Execute(composeSegsQuery id) 
                 -> {
-                    bin         = s.GetValue<int>(0)
-                    from_doc    = s.GetValue<int64>(1)
-                    to_doc      = s.GetValue<int64>(2)
-                    doc_count   = s.GetValue<int>(3)
-                    total_count = s.GetValue<int>(4)
-                    rng_cout    = s.GetValue<int>(5)
-                    data_size   = s.GetValue<int64>(6)
+                    id          = s.GetValue<System.Guid>(0)
+                    bin         = s.GetValue<int>(1)
+                    from_doc    = s.GetValue<int64>(2)
+                    to_doc      = s.GetValue<int64>(3)
+                    doc_count   = s.GetValue<int>(4)
+                    total_count = s.GetValue<int>(5)
+                    rng_cout    = s.GetValue<int>(6)
+                    data_size   = s.GetValue<int64>(7)
                 }
             |]
 
@@ -141,7 +174,5 @@ module Server =
         }
 
     [<Rpc>]
-    let GetSegments (np:string) (ks:string) (code:int) =
-        async {
-            return Segment.LoadSegmentsInfo np ks code
-        }
+    let GetSegments (np:string) (ks:string) (code:Attr) =
+        async { return Segment.LoadSegmentsInfo np ks code }
