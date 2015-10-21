@@ -63,8 +63,11 @@ module MainView =
             Div [ Class "list-group"; Attr.Id "ks_grp" ]
 
         let segsInfoGroup =
-            Tags.UL [ Class "list-group"; Attr.Id "segsInfo" ]
+            UL [ Class "list-group"; Attr.Id "segsInfo" ]
 
+        let segsStatList =
+            UL [  Class "list-group hidden"; Attr.Id "segsStat" ] 
+     
         let segmentsTable =
             Table [Class "table table-hover hidden"; Attr.Id "segTb" ] -< 
               [
@@ -85,30 +88,63 @@ module MainView =
         let formatNameInfoStr(n:string) (u:string)  =
                 sprintf "%s: %s, пользователь %s" DEFAULT_CODE_INFO_MSG n u
 
-        let cbProcSegments (si:SegmentsInfo) (c:Segment.Attr) =
-                let addStatItem msg cnt =
+        let addStatListItem (msg:string) (cnt:string) =
+                LI [ Class "list-group-item" ]
+                    -< [
+                            Tags.Span [ Class "badge" ] -< [ Text cnt ]
+                            Tags.Span [ Text msg ]
+                       ]
+
+        let cbProcStatList (sl: (int * Segment.SegmentsStat) list) =
+
+                let makeCodeStatItem (id:int, stat:Segment.SegmentsStat) = 
+                    Console.Log("Item " + (string id))
                     LI [ Class "list-group-item" ] 
-                        -< [
-                                Tags.Span [ Class "badge" ] -< [ Text cnt ]
-                                Tags.Span [ Text msg ]
-                            ]
+                           -< [
+                               Div [
+                                 H3 [ Text (sprintf "Атрибут %d" id) ]
+                                 UL [ Class "list-group" ] 
+                                    -< [
+                                        addStatListItem "Число сегментов" (string stat.binsCount)
+                                        addStatListItem "Число документов" (strWithSepInt64 stat.totalDocs)
+                                        addStatListItem "Число позиций" (strWithSepInt64 stat.totalPos)
+                                        addStatListItem "Средняя длина сегмента" (strForBytesFloat stat.avgSize)
+                                       ] ] ]
+
+                JQuery.Of(".segTbRow").Remove().Ignore
+                JQuery.Of("#segInfo" ).AddClass("hidden").Ignore
+                JQuery.Of("#segTb"   ).AddClass("hidden").Ignore
+                JQuery.Of("#segsStat").RemoveClass("hidden").Ignore
+
+                Console.Log("Items count: " + (string sl.Length))
+
+                segsStatList.Clear()
+                sl |> List.iter (fun el ->
+                    segsStatList.Append(makeCodeStatItem el) )
+
+        let cbProcSegments (si:SegmentsInfo) (c:Segment.Attr) =
 
                 match c with
                     | Segment.AttrByCode(ic) -> JQuery.Of("#codeMsg").Text(formatCodeInfoStr ic).Ignore
                     | Segment.AttrByName(n, u) -> JQuery.Of("#codeMsg").Text(formatNameInfoStr n u).Ignore
 
+                let stat = si.stat
+
                 segsInfoGroup.Clear()
                 segsInfoGroup.Append(
-                    addStatItem "Число сегментов" (string si.binsCount) )
+                    addStatListItem "Число сегментов" (string stat.binsCount) )
                 segsInfoGroup.Append(
-                    addStatItem "Число документов" (strWithSepInt64 si.totalDocs) )
+                    addStatListItem "Число документов" (strWithSepInt64 stat.totalDocs) )
                 segsInfoGroup.Append(
-                    addStatItem "Число позиций" (strWithSepInt64 si.totalPos) )
+                    addStatListItem "Число позиций" (strWithSepInt64 stat.totalPos) )
                 segsInfoGroup.Append(
-                    addStatItem "Средняя длина сегмента" (strForBytesFloat si.avgSize) )
+                    addStatListItem "Средняя длина сегмента" (strForBytesFloat stat.avgSize) )
 
                 JQuery.Of(".segTbRow").Remove().Ignore
-                JQuery.Of("#segTb").RemoveClass("hidden").Ignore
+                JQuery.Of("#segInfo" ).RemoveClass("hidden").Ignore
+                JQuery.Of("#segTb"   ).RemoveClass("hidden").Ignore
+                JQuery.Of("#segsStat").AddClass("hidden").Ignore
+
                 for s in si.segs do
                     segmentsTable.Append(
                         TR [ Attr.Class "segTbRow" ] -< [
@@ -158,17 +194,32 @@ module MainView =
         let requestSegments (code:Segment.Attr) (remote: string -> string -> Segment.Attr -> Async<Segment.SegmentsInfo>) = 
             async {
                 let! r = remote npsInput.Value (getSelectedKs ()) code
-                return cbProcSegments r code } 
+                return cbProcSegments r code }
 
         let codeDiv =
+
+            let runSimple code = requestSegments (Segment.AttrByCode code) Server.GetSegments
+            let runComposite codes =
+                async {
+                    let! r = Server.GetSegsStat npsInput.Value (getSelectedKs ()) (List.ofArray codes)
+                    return cbProcStatList r
+                }
+
             Div [ Class "form-group" ] -<
                 [
-                    Label  [Text "Код атрибута"]
+                    Label  [Text "Код атрибута (можно списком через запятую)"]
                     codeInput.OnKeyPress 
                         (fun ev key ->
-                            // let intCode = int codeInput.Value
                             match key.CharacterCode with
-                                | 13 -> requestSegments (Segment.AttrByCode (int codeInput.Value)) Server.GetSegments |> Async.Start
+                                | 13 ->
+                                    let cds = codeInput.Value.Split(',')
+                                    Console.Log("Codes: " + cds.ToString())
+                                    Console.Log("Codes len: " + cds.Length.ToString())
+                                    (if cds.Length = 1 then
+                                        runSimple (int codeInput.Value)
+                                    else
+                                        cds |> Array.map (fun c -> Segment.AttrByCode (int c))
+                                            |> runComposite ) |> Async.Start
                                 | _  -> () )
                 ]
 
@@ -216,9 +267,8 @@ module MainView =
               Div [ Class "row"] -< 
                 [
                     Div [ Class "col-md-6" ] -<
-                            [ Div [ Class "well" ] -<
+                            [ Div [ Class "well hidden"; Attr.Id "segInfo" ] -<
                                 [
-
                                     Span [ Class "label label-info"; Attr.Id "codeMsg" ] -<
                                         [ Text DEFAULT_CODE_INFO_MSG ]
                                     segsInfoGroup
@@ -230,6 +280,13 @@ module MainView =
                     Div [ Class "col-md-10" ] -<
                         [ segmentsTable ]
                 ]
+
+              Div [ Class "row"] -< 
+                [
+                    Div [ Class "col-md-4" ] -<
+                        [ segsStatList ]
+                ]
+
             ]
 
 

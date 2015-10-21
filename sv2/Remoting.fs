@@ -64,6 +64,7 @@ module Segment =
     open Backend
     open Cassandra
     open Cassandra.Mapping
+    open System.Collections.Generic
 
     type Attr = | AttrByCode of int 
                 | AttrByName of name:string * user:string
@@ -93,12 +94,17 @@ module Segment =
             data_size : int64
         }
 
-    type SegmentsInfo =
+    type SegmentsStat = 
         {
            binsCount : int
            totalDocs: int64
            totalPos : int64
            avgSize : float
+        }
+
+    type SegmentsInfo =
+        {
+           stat : SegmentsStat
            segs : Segment array
         }
 
@@ -107,27 +113,14 @@ module Segment =
         m.Single<System.Guid>(sprintf "select id from %s.codes where code = ?" ks, code)
 
     let getUUIDByName (ss:ISession) (ks:string) (name:string) (user:string) =
-
-        System.Diagnostics.Trace.WriteLine(sprintf "Name: %s User: %s" name user)
-        System.Diagnostics.Debug.WriteLine(sprintf "Name: %s User: %s" name user)
-
         let m  = new Mapper(ss)
         m.Single<System.Guid>(sprintf "select id from %s.vinames where name = ? and user = ?" ks, name, user)
 
     let composeSegsQuery id =
         sprintf "select id, bin, from_doc, to_doc, doc_count, total_count, rng_count, data_size from segments where id = %s" id
 
-    let LoadSegmentsInfo (np:string) (ks:string) (code:Attr) =
-
-        let ss = GetSession np ks
-        let id = match code with 
-                    | AttrByCode(c) -> getUUIDByCode ss ks c |> string
-                    | AttrByName(n,u) -> getUUIDByName ss ks n u |> string
-
-        System.Diagnostics.Trace.WriteLine(sprintf "Code is %s" id )
-
-        let segments =
-            [| for s in ss.Execute(composeSegsQuery id) 
+    let getSegments (ss:ISession) (id:string) = 
+         [| for s in ss.Execute(composeSegsQuery id) 
                 -> {
                     id          = s.GetValue<System.Guid>(0)
                     bin         = s.GetValue<int>(1)
@@ -138,7 +131,9 @@ module Segment =
                     rng_cout    = s.GetValue<int>(6)
                     data_size   = s.GetValue<int64>(7)
                 }
-            |]
+         |]
+
+    let gatherStat segs = 
 
         let totalDocsRef = ref (int64 0)
         let totalPosRef  = ref (int64 0)
@@ -149,14 +144,41 @@ module Segment =
             totalDocsRef := !totalDocsRef + int64 sg.doc_count
             avgSizeRef := !avgSizeRef + float sg.data_size        
         
-        Array.iter gatherStat segments
-        let cnt = Array.length segments
-        {
-            binsCount = cnt
+        Array.iter gatherStat segs
+        let cnt = Array.length segs
+
+        {   binsCount = cnt
             totalDocs = !totalDocsRef
             totalPos = !totalPosRef
-            avgSize = if cnt = 0 then 0.0 else !avgSizeRef / float cnt
-            segs = segments }
+            avgSize = if cnt = 0 then 0.0 else !avgSizeRef / float cnt }
+
+    let LoadSegmentsStat (np:string) (ks:string) (codes:Attr list) =
+
+        let dc = new Dictionary<string, int>()
+        let ss = GetSession np ks
+        codes |> List.map 
+                (fun c -> match c with
+                           | AttrByCode(c)   -> 
+                               let sc = getUUIDByCode ss ks c   |> string
+                               dc.Add(sc, c); sc
+                           | AttrByName(n,u) -> getUUIDByName ss ks n u |> string ) 
+              |> List.map (fun id -> (dc.[id], (gatherStat (getSegments ss id))) )
+
+    let LoadSegmentsArray (np:string) (ks:string) (code:Attr) =
+
+        let ss = GetSession np ks
+        let id = match code with 
+                    | AttrByCode(c) -> getUUIDByCode ss ks c |> string
+                    | AttrByName(n,u) -> getUUIDByName ss ks n u |> string
+
+        System.Diagnostics.Trace.WriteLine(sprintf "Code is %s" id )
+
+        let segs = getSegments ss id
+
+        let cnt = Array.length segs
+        {
+            stat = gatherStat segs
+            segs = segs }
 
 module Server =
 
@@ -175,4 +197,8 @@ module Server =
 
     [<Rpc>]
     let GetSegments (np:string) (ks:string) (code:Attr) =
-        async { return Segment.LoadSegmentsInfo np ks code }
+        async { return Segment.LoadSegmentsArray np ks code }
+
+    [<Rpc>]
+    let GetSegsStat (np:string) (ks:string) (codes:Attr list) =
+        async { return Segment.LoadSegmentsStat np ks codes }
