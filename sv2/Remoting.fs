@@ -97,9 +97,12 @@ module Segment =
     type SegmentsStat = 
         {
            binsCount : int
+           minDoc : int64
+           maxDoc : int64
            totalDocs: int64
            totalPos : int64
            avgSize : float
+           totalSize : float
         }
 
     type SegmentsInfo =
@@ -119,7 +122,7 @@ module Segment =
     let composeSegsQuery id =
         sprintf "select id, bin, from_doc, to_doc, doc_count, total_count, rng_count, data_size from segments where id = %s" id
 
-    let getSegments (ss:ISession) (id:string) = 
+    let inline getSegments (ss:ISession) (id:string) = 
          [| for s in ss.Execute(composeSegsQuery id) 
                 -> {
                     id          = s.GetValue<System.Guid>(0)
@@ -135,22 +138,27 @@ module Segment =
 
     let gatherStat segs = 
 
+        let minDocRef = ref (int64 0)
+        let maxDocRef = ref (int64 0)
         let totalDocsRef = ref (int64 0)
         let totalPosRef  = ref (int64 0)
         let avgSizeRef = ref 0.0
 
-        let gatherStat sg =
+        let inline gatherSingleStat sg =
             totalPosRef  := !totalPosRef  + int64 sg.total_count
             totalDocsRef := !totalDocsRef + int64 sg.doc_count
-            avgSizeRef := !avgSizeRef + float sg.data_size        
+            avgSizeRef := !avgSizeRef + float sg.data_size
         
-        Array.iter gatherStat segs
+        Array.iter gatherSingleStat segs
         let cnt = Array.length segs
 
         {   binsCount = cnt
+            minDoc = if cnt = 0 then (int64 0) else segs.[0].from_doc
+            maxDoc = if cnt = 0 then (int64 0) else (Array.last segs).to_doc
             totalDocs = !totalDocsRef
             totalPos = !totalPosRef
-            avgSize = if cnt = 0 then 0.0 else !avgSizeRef / float cnt }
+            avgSize = if cnt = 0 then 0.0 else !avgSizeRef / float cnt 
+            totalSize  = !avgSizeRef }
 
     let LoadSegmentsStat (np:string) (ks:string) (codes:Attr list) =
 

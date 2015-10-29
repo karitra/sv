@@ -106,9 +106,13 @@ module MainView =
                                  UL [ Class "list-group" ] 
                                     -< [
                                         addStatListItem "Число сегментов" (string stat.binsCount)
+                                        addStatListItem "Первый документ" (strWithSepInt64 stat.minDoc)
+                                        addStatListItem "Последний документ" (strWithSepInt64 stat.maxDoc)
+                                        addStatListItem "Документов в интервале" (strWithSepInt64 (stat.maxDoc - stat.minDoc) )
                                         addStatListItem "Число документов" (strWithSepInt64 stat.totalDocs)
                                         addStatListItem "Число позиций" (strWithSepInt64 stat.totalPos)
                                         addStatListItem "Средняя длина сегмента" (strForBytesFloat stat.avgSize)
+                                        addStatListItem "Суммарный размер" (strForBytesFloat stat.totalSize)
                                        ] ] ]
 
                 JQuery.Of(".segTbRow").Remove().Ignore
@@ -131,14 +135,14 @@ module MainView =
                 let stat = si.stat
 
                 segsInfoGroup.Clear()
-                segsInfoGroup.Append(
-                    addStatListItem "Число сегментов" (string stat.binsCount) )
-                segsInfoGroup.Append(
-                    addStatListItem "Число документов" (strWithSepInt64 stat.totalDocs) )
-                segsInfoGroup.Append(
-                    addStatListItem "Число позиций" (strWithSepInt64 stat.totalPos) )
-                segsInfoGroup.Append(
-                    addStatListItem "Средняя длина сегмента" (strForBytesFloat stat.avgSize) )
+                segsInfoGroup.Append( addStatListItem "Число сегментов" (string stat.binsCount) )
+                segsInfoGroup.Append( addStatListItem "Первый документ" (strWithSepInt64 stat.minDoc) )
+                segsInfoGroup.Append( addStatListItem "Последний документ" (strWithSepInt64 stat.maxDoc) )
+                segsInfoGroup.Append( addStatListItem "Документов в интервале" (strWithSepInt64 (stat.maxDoc - stat.minDoc) ) )
+                segsInfoGroup.Append( addStatListItem "Число документов" (strWithSepInt64 stat.totalDocs)  )
+                segsInfoGroup.Append( addStatListItem "Число позиций" (strWithSepInt64 stat.totalPos) )
+                segsInfoGroup.Append( addStatListItem "Средняя длина сегмента" (strForBytesFloat stat.avgSize) )
+                segsInfoGroup.Append( addStatListItem "Суммарный размер" (strForBytesFloat stat.totalSize) )
 
                 JQuery.Of(".segTbRow").Remove().Ignore
                 JQuery.Of("#segInfo" ).RemoveClass("hidden").Ignore
