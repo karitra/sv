@@ -68,6 +68,9 @@ module MainView =
         let segsStatList =
             UL [  Class "list-group hidden"; Attr.Id "segsStat" ] 
      
+        let getSelectedKs () =
+            JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").First().Val().ToString()
+
         let segmentsTable =
             Table [Class "table table-hover hidden"; Attr.Id "segTb" ] -< 
               [
@@ -79,6 +82,8 @@ module MainView =
                     TH [Text "Число документов"]
                     TH [Text "Число позиций"]
                     TH [Text "Размер"]
+                    TH [Text "Выполнить"]
+                    TH [Text "Результат"]
                 ]
               ]
         
@@ -132,7 +137,7 @@ module MainView =
                     | Segment.AttrByCode(ic) -> JQuery.Of("#codeMsg").Text(formatCodeInfoStr ic).Ignore
                     | Segment.AttrByName(n, u) -> JQuery.Of("#codeMsg").Text(formatNameInfoStr n u).Ignore
 
-                let stat = si.stat
+                let stat = si.stat 
 
                 segsInfoGroup.Clear()
                 segsInfoGroup.Append( addStatListItem "Число сегментов" (string stat.binsCount) )
@@ -149,6 +154,10 @@ module MainView =
                 JQuery.Of("#segTb"   ).RemoveClass("hidden").Ignore
                 JQuery.Of("#segsStat").AddClass("hidden").Ignore
 
+                let rowClickedCb (bin:int) (avg:float) =
+                    Console.Log(sprintf "avg: %f" avg)
+                    JQuery.Of(sprintf "#segRes%d" bin).Text(sprintf "%0.3f" avg).Ignore
+
                 for s in si.segs do
                     segmentsTable.Append(
                         TR [ Attr.Class "segTbRow" ] -< [
@@ -158,6 +167,15 @@ module MainView =
                             TD [ Text <| strWithSep s.doc_count ]
                             TD [ Text <| strWithSep s.total_count ]
                             TD [ Text <| strForBytesInt64 s.data_size ]
+                            TD [ 
+                                (Button  [ Class "btn btn-xs"; Attr.Id (sprintf "roBtn%d" s.bin) ] -< [ Text "ρW" ]).OnClick 
+                                    ( fun el ev ->
+                                        async {
+                                                let b = int (el.Id.Substring("roBtn".Length))
+                                                let! r = Server.GetSegmentDensity npsInput.Value (getSelectedKs ()) c b
+                                                return rowClickedCb b r } |> Async.Start )
+                                ]
+                            TD [ Span [ Class "badge"; Attr.Id ("segRes" + (string s.bin)) ] -< [ Text "" ] ]
                         ]
                     )
 
@@ -191,9 +209,6 @@ module MainView =
                                    return cbProcInput r } |> Async.Start
                             | _  -> () ) 
                 ]
-
-        let getSelectedKs () =
-            JQuery.Of("#ks_grp input[type='radio'][name='ksOption']:checked").First().Val().ToString()
 
         let requestSegments (code:Segment.Attr) (remote: string -> string -> Segment.Attr -> Async<Segment.SegmentsInfo>) = 
             async {
